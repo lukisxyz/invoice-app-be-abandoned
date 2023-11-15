@@ -36,11 +36,12 @@ func (p *ProductController) Routes() *chi.Mux {
 }
 
 type createProductBodyRequest struct {
-	Sku         string  `json:"sku"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Image       *[]byte `json:"image"`
-	Amount      float64 `json:"amount"`
+	Sku         string      `json:"sku"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Image       *[]byte     `json:"image"`
+	Amount      float64     `json:"amount"`
+	Categories  []ulid.ULID `json:"categories"`
 }
 
 func (p createProductBodyRequest) Validate() error {
@@ -98,6 +99,19 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 		)
 		return
 	}
+
+	if len(data.Categories) > 0 {
+		err := p.writeProduct.AssignCategories(ctx, newProduct.ID, data.Categories)
+		if err != nil {
+			httpresponse.WriteError(
+				w,
+				http.StatusInternalServerError,
+				err,
+			)
+			return
+		}
+	}
+
 	httpresponse.WriteData(w, http.StatusCreated, newProduct.ID, nil)
 }
 

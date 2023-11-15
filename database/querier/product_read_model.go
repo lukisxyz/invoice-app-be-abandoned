@@ -3,7 +3,7 @@ package querier
 import (
 	"context"
 	"flukis/invokiss/app/model"
-	"time"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -83,17 +83,22 @@ func (q *ProductQuerier) Fetch(ctx context.Context) (res ProductList, err error)
 		ctx,
 		`
 			SELECT
-				id,
-				created_at,
-				sku,
-				name,
-				description,
-				image,
-				amount,
-				updated_at,
-				deleted_at
-			FROM products
-			ORDER BY id;
+				p.id AS product_id,
+				p.sku,
+				p.name AS product_name,
+				p.description AS product_description,
+				p.amount,
+				p.image,
+				STRING_AGG(c.name, ',' ORDER BY c.name) AS category_names
+			FROM
+				products p
+			LEFT JOIN
+				category_product cp ON p.id = cp.product_id
+			LEFT JOIN
+				categories c ON cp.category_id = c.id
+			GROUP BY
+				p.id, p.sku, p.name, p.description, p.amount
+			ORDER BY p.id;
 		`,
 	)
 
@@ -105,41 +110,45 @@ func (q *ProductQuerier) Fetch(ctx context.Context) (res ProductList, err error)
 	var i int
 	for i = range items {
 		var id ulid.ULID
-		var createdAt time.Time
 		var sku string
 		var name string
 		var description string
 		var image *[]byte
 		var amount float64
-		var updateAt null.Time
-		var deletedAt null.Time
+		var cat null.String
 		if !rows.Next() {
 			break
 		}
 		if err := rows.Scan(
 			&id,
-			&createdAt,
 			&sku,
 			&name,
 			&description,
-			&image,
 			&amount,
-			&updateAt,
-			&deletedAt,
+			&image,
+			&cat,
 		); err != nil {
 			return emptyProducts, err
 		}
 
+		var categoryNames []string
+		if cat.Valid {
+			categoryNames = strings.Split(cat.String, ",")
+		}
+
+		var categories = make([]model.Category, len(categoryNames))
+		for idx := range categoryNames {
+			categories[idx].Name = categoryNames[idx]
+		}
+
 		items[i] = model.Product{
 			ID:          id,
-			CreatedAt:   createdAt,
-			UpdatedAt:   updateAt,
-			DeletedAt:   deletedAt,
 			Sku:         sku,
 			Name:        name,
 			Description: description,
 			Image:       image,
 			Amount:      amount,
+			Categories:  categories,
 		}
 	}
 

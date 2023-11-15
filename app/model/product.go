@@ -15,15 +15,16 @@ var (
 )
 
 type Product struct {
-	ID          ulid.ULID `json:"id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   null.Time `json:"updated_at"`
-	DeletedAt   null.Time `json:"deleted_at"`
-	Sku         string    `json:"sku"`
-	Name        string    `json:"name"`
-	Description string    `json:"desccription"`
-	Image       *[]byte   `json:"image"`
-	Amount      float64   `json:"amount"`
+	ID          ulid.ULID  `json:"id"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   null.Time  `json:"updated_at"`
+	DeletedAt   null.Time  `json:"deleted_at"`
+	Sku         string     `json:"sku"`
+	Name        string     `json:"name"`
+	Description string     `json:"desccription"`
+	Image       *[]byte    `json:"image"`
+	Amount      float64    `json:"amount"`
+	Categories  []Category `json:"categories"`
 }
 
 func NewProduct(
