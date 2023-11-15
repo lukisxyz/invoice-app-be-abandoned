@@ -26,5 +26,8 @@ setupmigrate:
 
 setup: setupair setupmigrate
 
+seed.product:
+	./database/seeder/product.sh
+
 run:
 	bin/air

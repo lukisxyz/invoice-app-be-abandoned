@@ -1,1 +1,2 @@
+DROP INDEX IF EXISTS idx_sku;
 DROP TABLE IF EXISTS products;

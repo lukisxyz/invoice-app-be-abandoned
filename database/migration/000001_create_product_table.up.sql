@@ -4,10 +4,11 @@ CREATE TABLE IF NOT EXISTS products (
 	updated_at TIMESTAMP,
 	deleted_at TIMESTAMP,
 
-	sku varchar(25) NOT NULL,
-	barcode varchar(50) NOT NULL,
-	name varchar(25) NOT NULL,
-	description varchar(100) NOT NULL,
+	sku varchar(25) NOT NULL UNIQUE,
+	name varchar(100) NOT NULL,
+	description Text NOT NULL,
 	image BYTEA,
 	amount NUMERIC(12,2) NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_sku ON products(sku);
