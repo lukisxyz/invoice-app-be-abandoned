@@ -37,15 +37,23 @@ func main() {
 
 	writeProduct := querier.NewProductWriteModel(pool)
 	readProduct := querier.NewProductReadModel(pool)
+	writeCategory := querier.NewCategoryWriteModel(pool)
+	readCategory := querier.NewCategoryReadModel(pool)
 
 	productController := controller.NewProductController(
 		writeProduct,
 		readProduct,
 	)
 
+	categoryController := controller.NewCategoryController(
+		writeCategory,
+		readCategory,
+	)
+
 	r := chi.NewRouter()
 
 	r.Mount("/api/product", productController.Routes())
+	r.Mount("/api/category", categoryController.Routes())
 
 	log.Info().Msg(fmt.Sprintf("starting up server on: %s", cfg.Listen.Addr()))
 	server := &http.Server{

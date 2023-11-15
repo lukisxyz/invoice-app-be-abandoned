@@ -1,10 +1,16 @@
 package model
 
 import (
+	"errors"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 	"gopkg.in/guregu/null.v4"
+)
+
+var (
+	ErrCategoryNotFound       = errors.New("category: not found")
+	ErrCategoryAlreadyDeleted = errors.New("product: already deleted")
 )
 
 type Category struct {

@@ -11,11 +11,11 @@ import (
 	"gopkg.in/guregu/null.v4"
 )
 
-type Querier struct {
+type ProductQuerier struct {
 	pool *pgxpool.Pool
 }
 
-func (q *Querier) GetByID(ctx context.Context, id ulid.ULID) (res model.Product, err error) {
+func (q *ProductQuerier) GetOneByID(ctx context.Context, id ulid.ULID) (res model.Product, err error) {
 	query := `
 		SELECT
 			id,
@@ -52,23 +52,13 @@ func (q *Querier) GetByID(ctx context.Context, id ulid.ULID) (res model.Product,
 		}
 		return item, err
 	}
-	if item.DeletedAt.IsZero() {
+	if item.DeletedAt.Valid {
 		return item, model.ErrProductAlreadyDeleted
 	}
 	return item, nil
 }
 
-type ProductList struct {
-	Count int             `json:"count"`
-	Data  []model.Product `json:"data"`
-}
-
-var emptyList = ProductList{
-	Count: 0,
-	Data:  []model.Product{},
-}
-
-func (q *Querier) Fetch(ctx context.Context) (res ProductList, err error) {
+func (q *ProductQuerier) Fetch(ctx context.Context) (res ProductList, err error) {
 	var itemCount int
 
 	row := q.pool.QueryRow(
@@ -81,11 +71,11 @@ func (q *Querier) Fetch(ctx context.Context) (res ProductList, err error) {
 		`,
 	)
 	if err := row.Scan(&itemCount); err != nil {
-		return emptyList, err
+		return emptyProducts, err
 	}
 
 	if itemCount == 0 {
-		return emptyList, nil
+		return emptyProducts, nil
 	}
 
 	items := make([]model.Product, itemCount)
@@ -108,7 +98,7 @@ func (q *Querier) Fetch(ctx context.Context) (res ProductList, err error) {
 	)
 
 	if err != nil {
-		return emptyList, err
+		return emptyProducts, err
 	}
 
 	defer rows.Close()
@@ -137,7 +127,7 @@ func (q *Querier) Fetch(ctx context.Context) (res ProductList, err error) {
 			&updateAt,
 			&deletedAt,
 		); err != nil {
-			return emptyList, err
+			return emptyProducts, err
 		}
 
 		items[i] = model.Product{
@@ -161,15 +151,25 @@ func (q *Querier) Fetch(ctx context.Context) (res ProductList, err error) {
 	return list, nil
 }
 
+type ProductList struct {
+	Count int             `json:"count"`
+	Data  []model.Product `json:"data"`
+}
+
+var emptyProducts = ProductList{
+	Count: 0,
+	Data:  []model.Product{},
+}
+
 type ProductReadModel interface {
 	Fetch(ctx context.Context) (res ProductList, err error)
-	GetByID(ctx context.Context, id ulid.ULID) (res model.Product, err error)
+	GetOneByID(ctx context.Context, id ulid.ULID) (res model.Product, err error)
 }
 
 func NewProductReadModel(
 	pool *pgxpool.Pool,
 ) ProductReadModel {
-	return &Querier{
+	return &ProductQuerier{
 		pool: pool,
 	}
 }

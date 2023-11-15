@@ -13,19 +13,19 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-type ProductController struct {
-	writeProduct querier.ProductWriteModel
-	readProduct  querier.ProductReadModel
+type CategoryController struct {
+	writeCategory querier.CategoryWriteModel
+	readCategory  querier.CategoryReadModel
 }
 
-func NewProductController(
-	writeProduct querier.ProductWriteModel,
-	readProduct querier.ProductReadModel,
-) *ProductController {
-	return &ProductController{writeProduct, readProduct}
+func NewCategoryController(
+	writeCategory querier.CategoryWriteModel,
+	readCategory querier.CategoryReadModel,
+) *CategoryController {
+	return &CategoryController{writeCategory, readCategory}
 }
 
-func (p *ProductController) Routes() *chi.Mux {
+func (p *CategoryController) Routes() *chi.Mux {
 	r := chi.NewMux()
 
 	r.Get("/", p.GetAll)
@@ -35,26 +35,21 @@ func (p *ProductController) Routes() *chi.Mux {
 	return r
 }
 
-type createProductBodyRequest struct {
-	Sku         string  `json:"sku"`
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Image       *[]byte `json:"image"`
-	Amount      float64 `json:"amount"`
+type createCategoryBodyRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
-func (p createProductBodyRequest) Validate() error {
+func (p createCategoryBodyRequest) Validate() error {
 	return validation.ValidateStruct(
 		&p,
 		validation.Field(&p.Name, validation.Required),
-		validation.Field(&p.Sku, validation.Required),
 		validation.Field(&p.Description, validation.Required),
-		validation.Field(&p.Amount, validation.Required),
 	)
 }
 
-func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
-	var data createProductBodyRequest
+func (p *CategoryController) Create(w http.ResponseWriter, req *http.Request) {
+	var data createCategoryBodyRequest
 	if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
 		httpresponse.WriteError(
 			w,
@@ -74,16 +69,13 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ctx := req.Context()
-	newProduct := model.NewProduct(
-		data.Sku,
+	newCategory := model.NewCategory(
 		data.Name,
 		data.Description,
-		data.Image,
-		data.Amount,
 	)
-	err := p.writeProduct.Save(ctx, newProduct)
+	err := p.writeCategory.Save(ctx, newCategory)
 	if err != nil {
-		if errors.Is(err, model.ErrProductNotFound) || errors.Is(err, model.ErrProductSKUDuplicated) {
+		if errors.Is(err, model.ErrCategoryNotFound) {
 			httpresponse.WriteError(
 				w,
 				http.StatusBadRequest,
@@ -98,12 +90,12 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 		)
 		return
 	}
-	httpresponse.WriteData(w, http.StatusCreated, newProduct.ID, nil)
+	httpresponse.WriteData(w, http.StatusCreated, newCategory.ID, nil)
 }
 
-func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
+func (p *CategoryController) GetAll(w http.ResponseWriter, req *http.Request) {
 	ctx := req.Context()
-	data, err := p.readProduct.Fetch(ctx)
+	data, err := p.readCategory.Fetch(ctx)
 	if err != nil {
 		httpresponse.WriteError(
 			w,
@@ -121,7 +113,7 @@ func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
 	httpresponse.WriteData(w, http.StatusOK, data.Data, meta)
 }
 
-func (p *ProductController) GetOneByID(w http.ResponseWriter, req *http.Request) {
+func (p *CategoryController) GetOneByID(w http.ResponseWriter, req *http.Request) {
 	var idStr = chi.URLParam(req, "id")
 	id, err := ulid.Parse(idStr)
 	if err != nil {
@@ -134,7 +126,7 @@ func (p *ProductController) GetOneByID(w http.ResponseWriter, req *http.Request)
 	}
 
 	ctx := req.Context()
-	data, err := p.readProduct.GetOneByID(ctx, id)
+	data, err := p.readCategory.GetOneByID(ctx, id)
 	if err != nil {
 		httpresponse.WriteError(
 			w,

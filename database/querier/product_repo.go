@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func (q *Querier) Save(ctx context.Context, data model.Product) error {
+func (q *ProductQuerier) Save(ctx context.Context, data model.Product) error {
 	query := `
 		INSERT INTO products (
 			id,
@@ -63,7 +63,7 @@ func (q *Querier) Save(ctx context.Context, data model.Product) error {
 	return nil
 }
 
-func (q *Querier) Delete(ctx context.Context, data model.Product) error {
+func (q *ProductQuerier) Delete(ctx context.Context, data model.Product) error {
 	query := `
 		UPDATE products
 		SET deleted_at = CURRENT_TIMESTAMP
@@ -90,7 +90,7 @@ type ProductWriteModel interface {
 func NewProductWriteModel(
 	pool *pgxpool.Pool,
 ) ProductWriteModel {
-	return &Querier{
+	return &ProductQuerier{
 		pool: pool,
 	}
 }

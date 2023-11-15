@@ -21,20 +21,32 @@ func WriteMessage(w http.ResponseWriter, status int, msg string) {
 }
 
 func WriteData(w http.ResponseWriter, status int, data, meta any) {
-	var j struct {
-		Data any `json:"data"`
-		Meta any `json:"meta"`
-	}
-
-	j.Data = data
-	j.Meta = meta
-
-	w.Header().Add("content-type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(j); err != nil {
-		http.Error(w, err.Error(), status)
+	switch meta {
+	case nil:
+		w.Header().Add("content-type", "application/json")
+		w.WriteHeader(status)
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
 		return
+	default:
+		var j struct {
+			Data any `json:"data"`
+			Meta any `json:"meta"`
+		}
+
+		j.Data = data
+		j.Meta = meta
+
+		w.Header().Add("content-type", "application/json")
+		w.WriteHeader(status)
+		if err := json.NewEncoder(w).Encode(j); err != nil {
+			http.Error(w, err.Error(), status)
+			return
+		}
 	}
+
 }
 
 func WriteError(w http.ResponseWriter, status int, err error) {
