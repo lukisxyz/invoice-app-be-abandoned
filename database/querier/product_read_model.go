@@ -73,7 +73,7 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			WHERE
 				cp.category_id = ANY($1::BYTEA[])
 			GROUP BY
-				p.id, p.sku, p.name, p.description, p.amount
+				p.id, p.sku, p.name, p.description, p.amount, p.image
 			ORDER BY p.id;
 		`,
 		filt,
@@ -273,7 +273,7 @@ func (q *ProductQuerier) Fetch(ctx context.Context) (res ProductList, err error)
 			LEFT JOIN
 				categories c ON cp.category_id = c.id
 			GROUP BY
-				p.id, p.sku, p.name, p.description, p.amount
+				p.id, p.sku, p.name, p.description, p.amount, p.image
 			ORDER BY p.id;
 		`,
 	)

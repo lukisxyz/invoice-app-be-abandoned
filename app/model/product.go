@@ -51,8 +51,8 @@ func NewProduct(
 }
 
 func (t Product) MarshalJSON() ([]byte, error) {
-	_, err := t.Categories[0].ID.Value()
-	if err != nil {
+	s := t.Categories[0].ID.String()
+	if s == "00000000000000000000000000" {
 		var j struct {
 			ID          ulid.ULID `json:"id"`
 			CreatedAt   time.Time `json:"created_at"`
