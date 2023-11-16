@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS category_product (
+CREATE TABLE IF NOT EXISTS category_products (
     category_id BYTEA,
     product_id BYTEA,
     PRIMARY KEY (category_id, product_id),

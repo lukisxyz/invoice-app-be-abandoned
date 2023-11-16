@@ -26,6 +26,7 @@ type Product struct {
 	Image       *[]byte    `json:"image"`
 	Amount      float64    `json:"amount"`
 	Categories  []Category `json:"categories"`
+	Inventory   Inventory  `json:"inventory"`
 }
 
 type CategoryProduct struct {
@@ -37,8 +38,17 @@ func NewProduct(
 	Sku, Name, Description string,
 	Image *[]byte,
 	Amount float64,
+	quantity int,
 ) Product {
 	id := ulid.Make()
+	idInv := ulid.Make()
+
+	var inventory = Inventory{
+		ID:        idInv,
+		CreatedAt: time.Now(),
+		Quantity:  quantity,
+	}
+
 	return Product{
 		ID:          id,
 		CreatedAt:   time.Now(),
@@ -47,6 +57,7 @@ func NewProduct(
 		Description: Description,
 		Image:       Image,
 		Amount:      Amount,
+		Inventory:   inventory,
 	}
 }
 
@@ -62,6 +73,7 @@ func (t Product) MarshalJSON() ([]byte, error) {
 			Image       *[]byte   `json:"image"`
 			Amount      float64   `json:"amount"`
 			Categories  []string  `json:"categories"`
+			Inventory   int       `json:"inventory"`
 		}
 
 		var x = make([]string, len(t.Categories))
@@ -77,6 +89,7 @@ func (t Product) MarshalJSON() ([]byte, error) {
 		j.Image = t.Image
 		j.Amount = t.Amount
 		j.Categories = x
+		j.Inventory = t.Inventory.Quantity
 
 		return json.Marshal(j)
 	} else {
@@ -94,6 +107,7 @@ func (t Product) MarshalJSON() ([]byte, error) {
 			Image       *[]byte   `json:"image"`
 			Amount      float64   `json:"amount"`
 			Categories  []Cats    `json:"categories"`
+			Inventory   int       `json:"inventory"`
 		}
 
 		var x = make([]Cats, len(t.Categories))
@@ -113,6 +127,7 @@ func (t Product) MarshalJSON() ([]byte, error) {
 		j.Image = t.Image
 		j.Amount = t.Amount
 		j.Categories = x
+		j.Inventory = t.Inventory.Quantity
 
 		return json.Marshal(j)
 	}

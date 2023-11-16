@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flukis/invokiss/app/model"
+	"fmt"
 	"strings"
 	"time"
 
@@ -29,13 +30,11 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			FROM
 				products p
 			LEFT JOIN
-				category_product cp ON p.id = cp.product_id
+				category_products cp ON p.id = cp.product_id
 			LEFT JOIN
 				categories c ON cp.category_id = c.id
 			WHERE
 				cp.category_id = ANY($1::BYTEA[])
-			GROUP BY
-				p.id
 		`,
 		filt,
 	)
@@ -46,6 +45,8 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 	if itemCount == 0 {
 		return emptyProducts, nil
 	}
+
+	fmt.Println(itemCount)
 
 	items := make([]model.Product, itemCount)
 	rows, err := q.pool.Query(
@@ -63,18 +64,22 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 					JSON_BUILD_OBJECT(
 						'name', c.name
 					)
-				) AS categories
+				) AS categories,
+				i.quantity AS inventory_quantity
 			FROM
 				products p
 			LEFT JOIN
-				category_product cp ON p.id = cp.product_id
+				category_products cp ON p.id = cp.product_id
 			LEFT JOIN
 				categories c ON cp.category_id = c.id
+			LEFT JOIN
+				inventories i ON p.inventory_id = i.id  -- Join with inventories table
 			WHERE
 				cp.category_id = ANY($1::BYTEA[])
 			GROUP BY
-				p.id, p.sku, p.name, p.description, p.amount, p.image
-			ORDER BY p.id;
+				p.id, p.created_at, p.sku, p.name, p.description, p.amount, p.image, i.quantity
+			ORDER BY
+				p.id;	
 		`,
 		filt,
 	)
@@ -95,6 +100,7 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			amount      float64
 			createdAt   time.Time
 			cats        []byte
+			inventory   int
 		)
 
 		if !rows.Next() {
@@ -109,6 +115,7 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			&amount,
 			&image,
 			&cats,
+			&inventory,
 		); err != nil {
 			return emptyProducts, err
 		}
@@ -122,6 +129,10 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			continue
 		}
 
+		var inv = model.Inventory{
+			Quantity: inventory,
+		}
+
 		items[i] = model.Product{
 			ID:          id,
 			Sku:         sku,
@@ -130,6 +141,7 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 			Image:       image,
 			Amount:      amount,
 			Categories:  categories,
+			Inventory:   inv,
 		}
 	}
 
@@ -144,17 +156,22 @@ func (q *ProductQuerier) FetchByCategoryID(ctx context.Context, filt []ulid.ULID
 func (q *ProductQuerier) GetOneByID(ctx context.Context, id ulid.ULID) (res model.Product, err error) {
 	query := `
 		SELECT
-			id,
-			created_at,
-			sku,
-			name,
-			description,
-			image,
-			amount,
-			updated_at,
-			deleted_at
-		FROM products
-		WHERE id = $1;
+			p.id AS product_id,
+			p.created_at,
+			p.sku,
+			p.name AS product_name,
+			p.description AS product_description,
+			p.amount,
+			p.image,
+			i.quantity AS inventory_quantity,
+			p.updated_at,
+			p.deleted_at
+		FROM
+			products p
+		LEFT JOIN
+			inventories i ON p.inventory_id = i.id
+		WHERE
+			p.id = $1;
 	`
 	row := q.pool.QueryRow(
 		ctx,
@@ -168,8 +185,9 @@ func (q *ProductQuerier) GetOneByID(ctx context.Context, id ulid.ULID) (res mode
 		&item.Sku,
 		&item.Name,
 		&item.Description,
-		&item.Image,
 		&item.Amount,
+		&item.Image,
+		&item.Inventory.Quantity,
 		&item.UpdatedAt,
 		&item.DeletedAt,
 	); err != nil {
@@ -184,7 +202,7 @@ func (q *ProductQuerier) GetOneByID(ctx context.Context, id ulid.ULID) (res mode
 
 	rows, err := q.pool.Query(ctx, `
 		SELECT category_id, product_id
-		FROM category_product
+		FROM category_products
 		WHERE product_id = $1;
 	`, id)
 	if err != nil {
@@ -269,7 +287,7 @@ func (q *ProductQuerier) Fetch(ctx context.Context) (res ProductList, err error)
 			FROM
 				products p
 			LEFT JOIN
-				category_product cp ON p.id = cp.product_id
+				category_products cp ON p.id = cp.product_id
 			LEFT JOIN
 				categories c ON cp.category_id = c.id
 			GROUP BY

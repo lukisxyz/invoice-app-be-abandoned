@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS category_product;
+DROP TABLE IF EXISTS category_products;

@@ -1,0 +1,7 @@
+ALTER TABLE products
+DROP CONSTRAINT IF EXISTS fk_inventory;
+
+ALTER TABLE products
+DROP COLUMN IF EXISTS inventory_id;
+
+DROP TABLE IF EXISTS inventories;

@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrCategoryNotFound       = errors.New("category: not found")
-	ErrCategoryAlreadyDeleted = errors.New("product: already deleted")
+	ErrCategoryAlreadyDeleted = errors.New("category: already deleted")
 )
 
 type Category struct {

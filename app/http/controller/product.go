@@ -31,9 +31,75 @@ func (p *ProductController) Routes() *chi.Mux {
 
 	r.Get("/", p.GetAll)
 	r.Get("/{id}", p.GetOneByID)
+	r.Put("/{id}", p.Change)
 	r.Post("/", p.Create)
+	r.Patch("/{id}/inventory", p.AssignQuantity)
 
 	return r
+}
+
+type assignQtyBodyRequest struct {
+	Quantity int `json:"qty"`
+}
+
+func (p assignQtyBodyRequest) Validate() error {
+	return validation.ValidateStruct(
+		&p,
+		validation.Field(&p.Quantity, validation.Required),
+	)
+}
+
+func (p *ProductController) AssignQuantity(w http.ResponseWriter, req *http.Request) {
+	var idStr = chi.URLParam(req, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	var data assignQtyBodyRequest
+	if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	if err := data.Validate(); err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	ctx := req.Context()
+	err = p.writeProduct.AssignQuantity(ctx, id, data.Quantity)
+	if err != nil {
+		if errors.Is(err, model.ErrProductNotFound) || errors.Is(err, model.ErrProductSKUDuplicated) {
+			httpresponse.WriteError(
+				w,
+				http.StatusBadRequest,
+				err,
+			)
+			return
+		}
+		httpresponse.WriteError(
+			w,
+			http.StatusInternalServerError,
+			err,
+		)
+		return
+	}
+
+	httpresponse.WriteData(w, http.StatusCreated, data.Quantity, nil)
 }
 
 type createProductBodyRequest struct {
@@ -42,6 +108,7 @@ type createProductBodyRequest struct {
 	Description string      `json:"description"`
 	Image       *[]byte     `json:"image"`
 	Amount      float64     `json:"amount"`
+	Quantity    int         `json:"quantity"`
 	Categories  []ulid.ULID `json:"categories"`
 }
 
@@ -52,6 +119,7 @@ func (p createProductBodyRequest) Validate() error {
 		validation.Field(&p.Sku, validation.Required),
 		validation.Field(&p.Description, validation.Required),
 		validation.Field(&p.Amount, validation.Required),
+		validation.Field(&p.Quantity, validation.Required),
 	)
 }
 
@@ -82,6 +150,7 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 		data.Description,
 		data.Image,
 		data.Amount,
+		data.Quantity,
 	)
 	err := p.writeProduct.Save(ctx, newProduct)
 	if err != nil {
@@ -116,6 +185,85 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 	httpresponse.WriteData(w, http.StatusCreated, newProduct.ID, nil)
 }
 
+type changeProductBodyRequest struct {
+	Sku         string  `json:"sku"`
+	Name        string  `json:"name"`
+	Description string  `json:"description"`
+	Image       *[]byte `json:"image"`
+	Amount      float64 `json:"amount"`
+}
+
+func (p changeProductBodyRequest) Validate() error {
+	return validation.ValidateStruct(
+		&p,
+		validation.Field(&p.Name, validation.Required),
+		validation.Field(&p.Sku, validation.Required),
+		validation.Field(&p.Description, validation.Required),
+		validation.Field(&p.Amount, validation.Required),
+	)
+}
+
+func (p *ProductController) Change(w http.ResponseWriter, req *http.Request) {
+	var idStr = chi.URLParam(req, "id")
+	id, err := ulid.Parse(idStr)
+	if err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	var data changeProductBodyRequest
+	if err := json.NewDecoder(req.Body).Decode(&data); err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	if err := data.Validate(); err != nil {
+		httpresponse.WriteError(
+			w,
+			http.StatusBadRequest,
+			err,
+		)
+		return
+	}
+
+	ctx := req.Context()
+	newProduct := model.Product{
+		ID:          id,
+		Sku:         data.Sku,
+		Name:        data.Name,
+		Description: data.Description,
+		Image:       data.Image,
+		Amount:      data.Amount,
+	}
+	err = p.writeProduct.Edit(ctx, newProduct)
+	if err != nil {
+		if errors.Is(err, model.ErrProductNotFound) || errors.Is(err, model.ErrProductSKUDuplicated) {
+			httpresponse.WriteError(
+				w,
+				http.StatusBadRequest,
+				err,
+			)
+			return
+		}
+		httpresponse.WriteError(
+			w,
+			http.StatusInternalServerError,
+			err,
+		)
+		return
+	}
+
+	httpresponse.WriteData(w, http.StatusCreated, newProduct.ID, nil)
+}
+
 func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
 	filterInString := req.URL.Query().Get("category")
 	IdsInArray := strings.Split(filterInString, ",")
@@ -142,6 +290,8 @@ func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
 	var meta struct {
 		Total int `json:"total"`
 	}
+
+	meta.Total = data.Count
 
 	httpresponse.WriteData(w, http.StatusOK, data.Data, meta)
 }
