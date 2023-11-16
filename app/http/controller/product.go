@@ -7,6 +7,7 @@ import (
 	"flukis/invokiss/database/querier"
 	"flukis/invokiss/lib/httpresponse"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	validation "github.com/go-ozzo/ozzo-validation/v4"
@@ -116,8 +117,20 @@ func (p *ProductController) Create(w http.ResponseWriter, req *http.Request) {
 }
 
 func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
+	filterInString := req.URL.Query().Get("category")
+	IdsInArray := strings.Split(filterInString, ",")
+
+	var IdsUlid = make([]ulid.ULID, len(IdsInArray))
+	for i := range IdsInArray {
+		idInUlid, err := ulid.Parse(IdsInArray[i])
+		if err != nil {
+			continue
+		}
+		IdsUlid[i] = idInUlid
+	}
+
 	ctx := req.Context()
-	data, err := p.readProduct.Fetch(ctx)
+	data, err := p.readProduct.FetchByCategoryID(ctx, IdsUlid)
 	if err != nil {
 		httpresponse.WriteError(
 			w,
@@ -129,8 +142,6 @@ func (p *ProductController) GetAll(w http.ResponseWriter, req *http.Request) {
 	var meta struct {
 		Total int `json:"total"`
 	}
-
-	meta.Total = data.Count
 
 	httpresponse.WriteData(w, http.StatusOK, data.Data, meta)
 }
